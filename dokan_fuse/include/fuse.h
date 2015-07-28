@@ -142,7 +142,7 @@ struct fuse_operations {
 	int (*symlink) (const char *, const char *);
 
 	/** Rename a file */
-	int (*rename) (const char *, const char *);
+	int(*rename) (const char *, const char *, BOOL replace_existing);
 
 	/** Create a hard link to a file */
 	int (*link) (const char *, const char *);

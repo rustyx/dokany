@@ -80,6 +80,10 @@ struct fuse_file_info {
 
 	/** Lock owner id.  Available in locking operations and flush */
 	uint64_t lock_owner;
+
+	DWORD dwDesiredAccess; /** Windows CreateFile flags.	 Available in open() */
+	DWORD dwShareMode;
+	DWORD dwFlagsAndAttributes;
 };
 
 /**

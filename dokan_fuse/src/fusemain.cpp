@@ -142,6 +142,8 @@ int impl_fuse_context::do_open_file(LPCWSTR FileName, DWORD share_mode, DWORD Fl
 
 	fuse_file_info finfo={0};
 	finfo.flags=convert_flags(Flags);
+	finfo.dwDesiredAccess = Flags;
+	finfo.dwShareMode = share_mode;
 
 	CHECKED(ops_.open(fname.c_str(),&finfo));
 
@@ -172,7 +174,9 @@ int impl_fuse_context::do_create_file(LPCWSTR FileName, DWORD Disposition, DWORD
 
 	fuse_file_info finfo={0};
 	finfo.flags=O_CREAT | O_EXCL | convert_flags(Flags); //TODO: these flags should be OK for new files?	
-	
+	finfo.dwDesiredAccess = Flags;
+	finfo.dwShareMode = share_mode;
+
 	CHECKED(ops_.create(fname.c_str(),filemask_,&finfo));
 
 	DokanFileInfo->Context=reinterpret_cast<ULONG64>(file.release());
@@ -181,8 +185,8 @@ int impl_fuse_context::do_create_file(LPCWSTR FileName, DWORD Disposition, DWORD
 
 int impl_fuse_context::convert_flags(DWORD Flags)
 {
-	bool read=(Flags & ACCESS_READ);
-	bool write=(Flags & ACCESS_WRITE);
+	bool read=(Flags & ACCESS_READ) != 0;
+	bool write=(Flags & ACCESS_WRITE) != 0;
 	if (read && !write)
 		return O_RDONLY;
 	if (!read && write)
@@ -234,7 +238,7 @@ int impl_fuse_context::walk_directory(void *buf, const char *name,
 		utf8_to_wchar_buf_old(name,find_data.cFileName,MAX_PATH);
 		std::string new_name = wchar_to_utf8_cstr(find_data.cFileName);
 		if (wd->ctx->ops_.getattr && wd->ctx->ops_.rename && new_name.length() && wd->ctx->ops_.getattr(new_name.c_str(),&stbuf) == -ENOENT)
-			wd->ctx->ops_.rename(name, new_name.c_str());
+			wd->ctx->ops_.rename(name, new_name.c_str(), false);
 	}
 	memset(find_data.cAlternateFileName, 0, sizeof(find_data.cAlternateFileName));
 
@@ -628,7 +632,7 @@ int impl_fuse_context::move_file(LPCWSTR file_name, LPCWSTR new_file_name,
 	std::string name=unixify(wchar_to_utf8_cstr(file_name));
 	std::string new_name=unixify(wchar_to_utf8_cstr(new_file_name));
 	
-	struct FUSE_STAT stbuf={0};
+	/*struct FUSE_STAT stbuf={0};
 	if (ops_.getattr(new_name.c_str(),&stbuf)!=-ENOENT)
 	{
 		if (!replace_existing)
@@ -638,16 +642,16 @@ int impl_fuse_context::move_file(LPCWSTR file_name, LPCWSTR new_file_name,
 		if ((stbuf.st_mode&S_IFDIR)!=0) return -EISDIR;
 		if (!ops_.unlink) return -EINVAL;
 		CHECKED(ops_.unlink(new_name.c_str()));
-	}
+	}*/
 
 	// this can happen cause DeleteFile in Windows can return success even if 
 	// file is still in the file system
-	if (ops_.getattr(new_name.c_str(),&stbuf)!=-ENOENT)
+	/*if (ops_.getattr(new_name.c_str(),&stbuf)!=-ENOENT)
 	{
 		return -EEXIST;
-	}
+	}*/
 
-	CHECKED(ops_.rename(name.c_str(),new_name.c_str()));
+	CHECKED(ops_.rename(name.c_str(), new_name.c_str(), replace_existing));
 	file_locks.renamed_file(name,new_name);
 	return 0;
 }
